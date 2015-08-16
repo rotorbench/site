@@ -1,0 +1,137 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <link href="/src/nv.d3.css" rel="stylesheet" type="text/css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.2/d3.min.js" charset="utf-8"></script>
+    <script src="/src/queue.v1.min.js"></script>
+    <script src="/src/nv.d3.js"></script>
+
+    <style>
+        text {
+            font: 12px sans-serif;
+        }
+        svg {
+            display: block;
+        }
+        html, body, .chart, svg {
+            margin: 2px;
+            padding: 2px;
+            height: 90%;
+            width: 90%;
+        }
+
+        .dashed {
+            stroke-dasharray: 5,5;
+        }
+        .title
+        {
+			text-shadow:2px -3px 18px rgba(224,224,224,0.3);font-weight:normal;color:#000000;border: 3px solid #A1A1A1;letter-spacing:1pt;word-spacing:0pt;font-size:32px;text-align:center;font-family:arial black, sans-serif;line-height:1;
+		}
+    </style>
+</head>
+<body class='with-3d-shadow with-transitions'>
+<center class="title"> DYS 1306 3100kv -- DYS SN20A ESC </center>
+<div style="position:absolute; top: 0; left: 0;">
+    <script>
+        var expandLegend = function() {
+            var exp = chart.legend.expanded();
+            chart.legend.expanded(!exp);
+            chart.update();
+        }
+    </script>
+</div>
+<div class="chart" id="pwm_gpwatt"></div>
+<div class="chart" id="current_thrust"></div>
+<div class="chart" id="pwm_thrust"></div>
+<div class="chart" id="pwm_rpm"></div>
+<!-- <div class="chart" id="pwm_voltage"></div> -->
+<div class="chart" id="pwm_voltage"></div>
+<script>
+    // Wrapping in nv.addGraph allows for '0 timeout render', stores
+    // rendered charts in nv.graphs, and may do more in the
+    // future... it's NOT required
+
+var plot = function(data, div, xname, xfunc, yname, yfunc) {
+        var chart;
+        nv.addGraph(function() {
+            chart = nv.models.lineChart()
+            	.interpolate("basis")
+    		    .x(xfunc)
+    			.y(yfunc)
+                .options({
+                    transitionDuration: 300,
+                    useInteractiveGuideline: true
+                })
+            ;
+    		
+    
+            // chart sub-models (ie. xAxis, yAxis, etc) when accessed directly, return themselves, not the parent chart, so need to chain separately
+            chart.xAxis
+                .axisLabel(xname)
+                .tickFormat(d3.format(',d'))
+                .staggerLabels(false)
+            ;
+    
+            chart.yAxis
+                .axisLabel(yname)
+                .tickFormat(function(d) {
+                    if (d == null) {
+                        return 'N/A';
+                    }
+                    return d3.format(',.02f')(d);
+                })
+            ;
+    
+            d3.select('#pwm_gpwatt').append('svg')
+                .datum(data)
+                .call(chart);
+    
+            nv.utils.windowResize(chart.update);
+    
+            return chart;
+        });
+    };
+
+    d3.json("manifest.json", function(error, data) {
+        if (error) return console.warn(error);
+        var q = queue(data.files.length);
+        
+        for (var i = 0; i < data.files.length; i++) {
+            var fn = data.files[i];
+            var k = fn.split(/_/)[3];
+            k = k.split('.')[0];
+            q.defer(function(fn, k, cb) {
+                d3.csv(fn)
+                    .get(function(error, rows) {
+                        if (error) { return console.warn(error); }
+                        cb(null, {key: k, values: rows.filter(function(d) { return d.pwm <= 2000 && (rows.indexOf(d) % 20 == 0); })});
+                    });
+            }, fn, k);
+        }
+        q.awaitAll(function(error, results) {
+            plot(results, '#pwm_thrust',
+                 "PWM", function(d) { return +d.pwm; },
+                 "Thrust(g)", function(d) { return +d.thrust; });          
+            plot(results, '#current_thrust',
+                 "PWM", function(d) { return +d.pwm; },
+                 "Current", function(d) { return +d.current; });
+            plot(results, '#pwm_rpm',
+                 "PWM", function(d) { return +d.pwm; },
+                 "RPM", function(d) { return +d.rpm; });                 
+            plot(results, '#pwm_gpwatt',
+                 "PWM", function(d) { return +d.pwm; },
+                 "Grams/watt", function(d) { return +d.gpwatt; });
+                 
+           plot(results, '#pwm_voltage',
+                 "PWM", function(d) { return +d.pwm; },
+                 "Voltage", function(d) { return +d.voltage; });                 
+                 
+
+        });
+    });
+
+</script>
+</body>
+</html>

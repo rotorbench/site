@@ -1,0 +1,4 @@
+DYS SN20A
+timing_max 0x0080
+motor_advance 12
+COMP_PWM
