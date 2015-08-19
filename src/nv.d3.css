@@ -605,6 +605,7 @@ svg.nvd3-svg {
     border-bottom-width: 1px;
     border-top-style: solid;
     border-top-width: 1px;
+    background-color: #ccc;
 }
 
 .nvtooltip table td.legend-color-guide div {
